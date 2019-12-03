@@ -32,9 +32,13 @@
 #define RX_WAIT_CONFIG      (0x11)
 #define CRC_RX_CONFIG       (0x12)
 #define RX_STATUS           (0x13)
+#define TX_WAIT_CONFIG	    (0x17)
+#define TX_CONFIG			(0x18)
+#define CRC_TX_CONFIG       (0x19)
 #define RF_STATUS           (0x1d)
 #define SYSTEM_STATUS       (0x24)
 #define TEMP_CONTROL        (0x25)
+
 
 // PN5180 EEPROM Addresses
 #define DIE_IDENTIFIER      (0x00)
@@ -100,6 +104,7 @@ public:
   bool sendData(uint8_t *data, int len, uint8_t validBits = 0);
   /* cmd 0x0a */
   uint8_t * readData(int len);
+  bool readData(uint8_t len, uint8_t *buffer);
 
   /* cmd 0x11 */
   bool loadRFConfig(uint8_t txConf, uint8_t rxConf);

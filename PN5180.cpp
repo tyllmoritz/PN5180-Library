@@ -334,6 +334,17 @@ uint8_t * PN5180::readData(int len) {
   return readBuffer;
 }
 
+bool PN5180::readData(uint8_t len, uint8_t *buffer) {
+	if (len > 508) {
+		return false;
+	}
+	uint8_t cmd[2] = { PN5180_READ_DATA, 0x00 };
+	SPI.beginTransaction(PN5180_SPI_SETTINGS);
+	transceiveCommand(cmd, 2, buffer, len);
+	SPI.endTransaction();
+	return true;
+}
+
 /*
  * LOAD_RF_CONFIG - 0x11
  * Parameter 'Transmitter Configuration' must be in the range from 0x0 - 0x1C, inclusive. If
