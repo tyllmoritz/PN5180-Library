@@ -192,6 +192,8 @@ bool PN5180ISO14443::readCardSerial(uint8_t *buffer) {
      activateTypeA(response, 1);
 	if ((response[0] == 0xFF) && (response[1] == 0xFF))
 	  return false;
+	if ((response[3] == 0xFF) && (response[4] == 0xFF) && (response[5] == 0xFF) && (response[6] == 0xFF))
+	  return false;
     for (int i = 0; i < 7; i++) buffer[i] = response[i+3];
 	mifareHalt();
 	return true;  
@@ -220,6 +222,8 @@ bool PN5180ISO14443::isCardPresent() {
 	// check valid response
 	if ((response[0] == 0x44) && (response[1] == 0x00)) 
       return true;
+	if ((response[0] == 0xFF) && (response[1] == 0xFF) && (response[2] == 0xFF) && (response[3] == 0xFF)) 
+      return false;
 	 
     mifareHalt();	  
     return true;
