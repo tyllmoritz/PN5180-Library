@@ -153,7 +153,7 @@ void loop() {
   Serial.println(F("----------------------------------"));
   Serial.print(F("Loop #"));
   Serial.println(loopCnt++);
-  #if defined(ARDUINO_AVR_UNO)  
+  #if defined(ARDUINO_ARCH_ESP32)  
     Serial.println("Free heap: " + String(ESP.getFreeHeap())); 
   #endif
   uint8_t uid[8];
