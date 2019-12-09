@@ -153,7 +153,9 @@ void loop() {
   Serial.println(F("----------------------------------"));
   Serial.print(F("Loop #"));
   Serial.println(loopCnt++);
-  
+  #if defined(ARDUINO_AVR_UNO)  
+    Serial.println("Free heap: " + String(ESP.getFreeHeap())); 
+  #endif
   uint8_t uid[8];
   // check for ISO-14443 card
   if (nfc14443.isCardPresent()) {
@@ -187,7 +189,10 @@ void loop() {
       Serial.print(uid[7-i] < 0x10 ? " 0" : " ");
       Serial.print(uid[7-i], HEX); // LSB is first
     }
-    Serial.println();    
+    Serial.println();
+    Serial.println(F("----------------------------------"));
+    delay(1000); 
+    return;
   }
 
   // no card detected
