@@ -83,8 +83,8 @@
 
 #elif defined(ARDUINO_ARCH_ESP32)
 
-#define PN5180_NSS  16   // swapped with BUSY
-#define PN5180_BUSY 5  // swapped with NSS
+#define PN5180_NSS  16   
+#define PN5180_BUSY 5  
 #define PN5180_RST  17
 
 #else
@@ -156,12 +156,15 @@ void loop() {
   #if defined(ARDUINO_ARCH_ESP32)  
     Serial.println("Free heap: " + String(ESP.getFreeHeap())); 
   #endif
-  uint8_t uid[8];
+  uint8_t uid[10];
   // check for ISO-14443 card
+  nfc14443.reset();
+  nfc14443.setupRF();
   if (nfc14443.isCardPresent()) {
-    if (nfc14443.readCardSerial(uid)) {
+    uint8_t uidLength = nfc14443.readCardSerial(uid);
+    if (uidLength > 0) {
       Serial.print(F("ISO14443 card found, UID="));
-      for (int i=0; i<8; i++) {
+      for (int i=0; i<uidLength; i++) {
         Serial.print(uid[i] < 0x10 ? " 0" : " ");
         Serial.print(uid[i], HEX);
       }

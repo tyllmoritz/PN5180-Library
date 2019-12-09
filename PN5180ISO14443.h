@@ -30,7 +30,7 @@ private:
   uint16_t rxBytesReceived();
 public:
   // Mifare TypeA
-  void activateTypeA(uint8_t *buffer, uint8_t kind);
+  uint8_t activateTypeA(uint8_t *buffer, uint8_t kind);
   bool mifareBlockRead(uint8_t blockno,uint8_t *buffer);
   uint8_t mifareBlockWrite16(uint8_t blockno, uint8_t *buffer);
   bool mifareHalt();
@@ -39,7 +39,7 @@ public:
    */
 public:   
   bool setupRF();
-  bool readCardSerial(uint8_t *buffer);    
+  uint8_t readCardSerial(uint8_t *buffer);    
   bool isCardPresent();    
 };
 

@@ -58,10 +58,16 @@ uint16_t PN5180ISO14443::rxBytesReceived() {
 * buffer[3..6] is 4 byte UID
 * buffer[7..9] is remaining 3 bytes of UID for 7 Byte UID tags
 * kind : 0  we send REQA, 1 we send WUPA
+*
+* return value: the uid length:
+* -	zero if no tag was recognized
+* -	single Size UID (4 byte)
+* -	double Size UID (7 byte)
+* -	triple Size UID (10 byte) - not yet supported
 */
-void PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
+uint8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 	uint8_t cmd[7];
-
+	uint8_t uidLength = 0;
 	// Load standard TypeA protocol
 	loadRFConfig(0x0, 0x80);
 
@@ -97,6 +103,7 @@ void PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 	if ((buffer[2] & 0x04) == 0) {
 		// Take first 4 bytes of anti collision as UID store at offset 3 onwards. job done
 		for (int i = 0; i < 4; i++) buffer[3+i] = cmd[2 + i];
+		uidLength = 4;
 	}
 	else {
 		// Take First 3 bytes of UID, Ignore first byte 88(CT)
@@ -125,7 +132,9 @@ void PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 		sendData(cmd, 7, 0x00);
 		//Read 1 byte SAK into buffer[2]
 		readData(1, buffer + 2);	
+		uidLength = 7;
 	}
+    return uidLength;
 }
 
 bool PN5180ISO14443::mifareBlockRead(uint8_t blockno, uint8_t *buffer) {
@@ -180,23 +189,27 @@ bool PN5180ISO14443::mifareHalt() {
 	 return true;
 }
 
-bool PN5180ISO14443::readCardSerial(uint8_t *buffer) {
+uint8_t PN5180ISO14443::readCardSerial(uint8_t *buffer) {
   
     uint8_t response[10];
+	uint8_t uidLength;
 	// Always return 10 bytes
     // Offset 0..1 is ATQA
     // Offset 2 is SAK.
     // UID 4 bytes : offset 3 to 6 is UID, offset 7 to 9 to Zero
     // UID 7 bytes : offset 3 to 9 is UID
     for (int i = 0; i < 10; i++) response[i] = 0;
-     activateTypeA(response, 1);
+    uidLength = activateTypeA(response, 1);
 	if ((response[0] == 0xFF) && (response[1] == 0xFF))
-	  return false;
+	  return 0;
+	// check for valid uid
+	if ((response[3] == 0x00) && (response[4] == 0x00) && (response[5] == 0x00) && (response[6] == 0x00))
+	  return 0;
 	if ((response[3] == 0xFF) && (response[4] == 0xFF) && (response[5] == 0xFF) && (response[6] == 0xFF))
-	  return false;
+	  return 0;
     for (int i = 0; i < 7; i++) buffer[i] = response[i+3];
 	mifareHalt();
-	return true;  
+	return uidLength;  
 }
 
 bool PN5180ISO14443::isCardPresent() {
@@ -222,9 +235,12 @@ bool PN5180ISO14443::isCardPresent() {
 	// check valid response
 	if ((response[0] == 0x44) && (response[1] == 0x00)) 
       return true;
+	// sanity check  
+	if ((response[0] == 0x00) && (response[1] == 0x00) && (response[2] == 0x00) && (response[3] == 0x00)) 
+      return false;
 	if ((response[0] == 0xFF) && (response[1] == 0xFF) && (response[2] == 0xFF) && (response[3] == 0xFF)) 
       return false;
-	 
+	// send HaltA 
     mifareHalt();	  
     return true;
 }
