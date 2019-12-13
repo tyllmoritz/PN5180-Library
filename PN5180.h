@@ -67,6 +67,7 @@ enum PN5180TransceiveStat {
 #define TX_RFOFF_IRQ_STAT   (1<<8)  // RF Field OFF in PCD IRQ
 #define TX_RFON_IRQ_STAT    (1<<9)  // RF Field ON in PCD IRQ
 #define RX_SOF_DET_IRQ_STAT (1<<14) // RF SOF Detection IRQ
+#define LPCD_IRQ_STAT 		(1<<19) // LPCD Detection IRQ
 
 class PN5180 {
 private:
@@ -105,7 +106,8 @@ public:
   /* cmd 0x0a */
   uint8_t * readData(int len);
   bool readData(uint8_t len, uint8_t *buffer);
-
+  /* cmd 0x0B */
+  bool switchToLPCD(uint16_t wakeupCounterInMs);
   /* cmd 0x11 */
   bool loadRFConfig(uint8_t txConf, uint8_t rxConf);
 
@@ -120,6 +122,7 @@ public:
 public:
   void reset();
 
+  uint8_t commandTimeout = 50;
   uint32_t getIRQStatus();
   bool clearIRQStatus(uint32_t irqMask);
 

@@ -186,7 +186,7 @@ bool PN5180ISO14443::mifareHalt() {
 	cmd[0] = 0x50;
 	cmd[1] = 0x00;
 	sendData(cmd, 2, 0x00);	
-	 return true;
+	return true;
 }
 
 uint8_t PN5180ISO14443::readCardSerial(uint8_t *buffer) {
@@ -213,35 +213,7 @@ uint8_t PN5180ISO14443::readCardSerial(uint8_t *buffer) {
 }
 
 bool PN5180ISO14443::isCardPresent() {
-	uint8_t cmd[7];
-	uint8_t response[2];
-
-	// Load standard TypeA protocol
-	loadRFConfig(0x0, 0x80);
-
-	// OFF Crypto
-	writeRegisterWithAndMask(SYSTEM_CONFIG, 0xFFFFFFBF);
-	// Clear RX CRC
-	writeRegisterWithAndMask(CRC_RX_CONFIG, 0xFFFFFFFE);
-	// Clear TX CRC
-	writeRegisterWithAndMask(CRC_TX_CONFIG, 0xFFFFFFFE);
-	//Send REQA, 7 bits in last byte
-	cmd[0] = 0x26;
-	sendData(cmd, 1, 0x07);
-	// READ 2 bytes ATQA into  buffer
-	response[0] = 0;
-	response[1] = 0;
-	readData(2, response);
-	// check valid response
-	if ((response[0] == 0x44) && (response[1] == 0x00)) 
-      return true;
-	// sanity check  
-	if ((response[0] == 0x00) && (response[1] == 0x00) && (response[2] == 0x00) && (response[3] == 0x00)) 
-      return false;
-	if ((response[0] == 0xFF) && (response[1] == 0xFF) && (response[2] == 0xFF) && (response[3] == 0xFF)) 
-      return false;
-	// send HaltA 
-    mifareHalt();	  
-    return true;
+    uint8_t buffer[10];
+	return (readCardSerial(buffer) >=4);
 }
 
