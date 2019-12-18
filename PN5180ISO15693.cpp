@@ -399,9 +399,10 @@ ISO15693ErrorCode PN5180ISO15693::getRandomNumber(uint8_t *randomData) {
  * to access the different protected functionalities of the following commands. 
  * The SET PASSWORD command has to be executed just once for the related passwords if the label is powered
  */
-ISO15693ErrorCode PN5180ISO15693::setPassword(uint8_t *password, uint8_t *random) {
+ISO15693ErrorCode PN5180ISO15693::setPassword(uint8_t identifier, uint8_t *password, uint8_t *random) {
   uint8_t setPassword[] = {0x02, 0xB3, 0x04, 0x04, 0x00, 0x00, 0x00, 0x00};
   uint8_t *readBuffer;
+  setPassword[3] = identifier;
   setPassword[4] = password[0] ^ random[0];
   setPassword[5] = password[1] ^ random[1];
   setPassword[6] = password[2] ^ random[0];
@@ -422,8 +423,8 @@ ISO15693ErrorCode PN5180ISO15693::enablePrivacy(uint8_t *password, uint8_t *rand
 }
 
 
-// unlock a ICODE SLIX2 tag with given password
-ISO15693ErrorCode PN5180ISO15693::unlockICODESLIX2(uint8_t *password) {
+// disable privacy mode for ICODE SLIX2 tag with given password
+ISO15693ErrorCode PN5180ISO15693::disablePrivacyMode(uint8_t *password) {
   // get a random number from the tag
   uint8_t random[]= {0x00, 0x00};
   ISO15693ErrorCode rc = getRandomNumber(random);
@@ -431,13 +432,13 @@ ISO15693ErrorCode PN5180ISO15693::unlockICODESLIX2(uint8_t *password) {
     return rc;
   }
   
-  // set password to unlock the tag
-  rc = setPassword(password, random);
+  // set password to disable privacy mode 
+  rc = setPassword(0x04, password, random);
   return rc; 
 }
 
-// lock a ICODE SLIX2 tag with given password (set to privacy mode)
-ISO15693ErrorCode PN5180ISO15693::lockICODESLIX2(uint8_t *password) {
+// enable privacy mode for ICODE SLIX2 tag with given password 
+ISO15693ErrorCode PN5180ISO15693::enablePrivacyMode(uint8_t *password) {
   // get a random number from the tag
   uint8_t random[]= {0x00, 0x00};
   ISO15693ErrorCode rc = getRandomNumber(random);

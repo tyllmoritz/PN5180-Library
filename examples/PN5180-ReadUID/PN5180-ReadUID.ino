@@ -180,9 +180,9 @@ void loop() {
   nfc15693.setupRF();
   // check for ICODE-SLIX2 password protected tag
   uint8_t password[] = {0x5B, 0x6E, 0xFD, 0x7F};
-  ISO15693ErrorCode myrc = nfc15693.unlockICODESLIX2(password);
+  ISO15693ErrorCode myrc = nfc15693.disablePrivacyMode(password);
   if (ISO15693_EC_OK == myrc) {
-    Serial.println("unlockICODESLIX2 successful");
+    Serial.println("disablePrivacyMode successful");
   }
   // try to read ISO15693 inventory
   ISO15693ErrorCode rc = nfc15693.getInventory(uid);
@@ -191,6 +191,12 @@ void loop() {
     for (int i=0; i<8; i++) {
       Serial.print(uid[7-i] < 0x10 ? " 0" : " ");
       Serial.print(uid[7-i], HEX); // LSB is first
+    }
+    Serial.println();
+    // enable privacy mode
+    ISO15693ErrorCode myrc = nfc15693.enablePrivacyMode(password);
+    if (ISO15693_EC_OK == myrc) {
+      Serial.println("enablePrivacyMode successful");
     }
     Serial.println();
     Serial.println(F("----------------------------------"));
