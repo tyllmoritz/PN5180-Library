@@ -411,7 +411,7 @@ ISO15693ErrorCode PN5180ISO15693::setPassword(uint8_t *password, uint8_t *random
 }
 
 ISO15693ErrorCode PN5180ISO15693::enablePrivacy(uint8_t *password, uint8_t *random) {
-  uint8_t setPrivacy[] = {0x02, 0xBA, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+  uint8_t setPrivacy[] = {0x02, 0xBA, 0x04, 0x00, 0x00, 0x00, 0x00};
   uint8_t *readBuffer;
   setPrivacy[3] = password[0] ^ random[0];
   setPrivacy[4] = password[1] ^ random[1];
