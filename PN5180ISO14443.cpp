@@ -69,35 +69,47 @@ uint8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 	uint8_t cmd[7];
 	uint8_t uidLength = 0;
 	// Load standard TypeA protocol
-	loadRFConfig(0x0, 0x80);
+	if (!loadRFConfig(0x0, 0x80)) 
+	  return 0;
 
 	// OFF Crypto
-	writeRegisterWithAndMask(SYSTEM_CONFIG, 0xFFFFFFBF);
+	if (!writeRegisterWithAndMask(SYSTEM_CONFIG, 0xFFFFFFBF))
+	  return 0;
 	// Clear RX CRC
-	writeRegisterWithAndMask(CRC_RX_CONFIG, 0xFFFFFFFE);
+	if (!writeRegisterWithAndMask(CRC_RX_CONFIG, 0xFFFFFFFE))
+	  return 0;
 	// Clear TX CRC
-	writeRegisterWithAndMask(CRC_TX_CONFIG, 0xFFFFFFFE);
+	if (!writeRegisterWithAndMask(CRC_TX_CONFIG, 0xFFFFFFFE))
+	  return 0;
 	//Send REQA/WUPA, 7 bits in last byte
 	cmd[0] = (kind == 0) ? 0x26 : 0x52;
-	sendData(cmd, 1, 0x07);
+	if (!sendData(cmd, 1, 0x07))
+	  return 0;
 	// READ 2 bytes ATQA into  buffer
-	readData(2, buffer);
+	if (!readData(2, buffer)) 
+	  return 0;
 	//Send Anti collision 1, 8 bits in last byte
 	cmd[0] = 0x93;
 	cmd[1] = 0x20;
-	sendData(cmd, 2, 0x00);
+	if (!sendData(cmd, 2, 0x00))
+	  return 0;
 	//Read 5 bytes, we will store at offset 2 for later usage
-	readData(5, cmd+2);
+	if (!readData(5, cmd+2)) 
+	  return 0;
 	//Enable RX CRC calculation
-	writeRegisterWithOrMask(CRC_RX_CONFIG, 0x01);
+	if (!writeRegisterWithOrMask(CRC_RX_CONFIG, 0x01)) 
+	  return 0;
 	//Enable TX CRC calculation
-	writeRegisterWithOrMask(CRC_TX_CONFIG, 0x01);
+	if (!writeRegisterWithOrMask(CRC_TX_CONFIG, 0x01)) 
+	  return 0;
 	//Send Select anti collision 1, the remaining bytes are already in offset 2 onwards
 	cmd[0] = 0x93;
 	cmd[1] = 0x70;
-	sendData(cmd, 7, 0x00);
+	if (!sendData(cmd, 7, 0x00)) 
+	  return 0;
 	//Read 1 byte SAK into buffer[2]
-	readData(1, buffer+2);
+	if (!readData(1, buffer+2)) 
+	  return 0;
 	// Check if the tag is 4 Byte UID or 7 byte UID and requires anti collision 2
 	// If Bit 3 is 0 it is 4 Byte UID
 	if ((buffer[2] & 0x04) == 0) {
@@ -109,29 +121,37 @@ uint8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 		// Take First 3 bytes of UID, Ignore first byte 88(CT)
 		for (int i = 0; i < 3; i++) buffer[3+i] = cmd[3 + i];
 		// Clear RX CRC
-		writeRegisterWithAndMask(CRC_RX_CONFIG, 0xFFFFFFFE);
+		if (!writeRegisterWithAndMask(CRC_RX_CONFIG, 0xFFFFFFFE)) 
+	      return 0;
 		// Clear TX CRC
-		writeRegisterWithAndMask(CRC_TX_CONFIG, 0xFFFFFFFE);
+		if (!writeRegisterWithAndMask(CRC_TX_CONFIG, 0xFFFFFFFE)) 
+	      return 0;
 		// Do anti collision 2
 		cmd[0] = 0x95;
 		cmd[1] = 0x20;
-		sendData(cmd, 2, 0x00);
+		if (!sendData(cmd, 2, 0x00)) 
+	      return 0;
 		//Read 5 bytes. we will store at offset 2 for later use
-		readData(5, cmd+2);
+		if (!readData(5, cmd+2)) 
+	      return 0;
 		// first 4 bytes belongs to last 4 UID bytes, we keep it.
 		for (int i = 0; i < 4; i++) {
 			buffer[6 + i] = cmd[2+i];
 		}
 		//Enable RX CRC calculation
-		writeRegisterWithOrMask(CRC_RX_CONFIG, 0x01);
+		if (!writeRegisterWithOrMask(CRC_RX_CONFIG, 0x01)) 
+	      return 0;
 		//Enable TX CRC calculation
-		writeRegisterWithOrMask(CRC_TX_CONFIG, 0x01);
+		if (!writeRegisterWithOrMask(CRC_TX_CONFIG, 0x01)) 
+	      return 0;
 		//Send Select anti collision 2 
 		cmd[0] = 0x95;
 		cmd[1] = 0x70;
-		sendData(cmd, 7, 0x00);
+		if (!sendData(cmd, 7, 0x00)) 
+	      return 0;
 		//Read 1 byte SAK into buffer[2]
-		readData(1, buffer + 2);	
+		if (!readData(1, buffer + 2)) 
+	      return 0;	
 		uidLength = 7;
 	}
     return uidLength;
@@ -144,14 +164,15 @@ bool PN5180ISO14443::mifareBlockRead(uint8_t blockno, uint8_t *buffer) {
 	// Send mifare command 30,blockno
 	cmd[0] = 0x30;
 	cmd[1] = blockno;
-	sendData(cmd, 2, 0x00);
+	if (!sendData(cmd, 2, 0x00))
+	  return false;
 	//Check if we have received any data from the tag
 	delay(5);
 	len = rxBytesReceived();
 	if (len == 16) {
 		// READ 16 bytes into  buffer
-		readData(16, buffer);
-		success = true;
+		if (readData(16, buffer))
+		  success = true;
 	}
 	return success;
 }
