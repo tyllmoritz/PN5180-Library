@@ -184,7 +184,7 @@ void loop() {
 
 /*
   // code for unlocking an ICODE SLIX2 protected tag   
-  uint8_t password[] = {0x5B, 0x6E, 0xFD, 0x7F};
+  uint8_t password[] = {0x01, 0x02, 0x03, 0x04}; // put your privacy password here
   ISO15693ErrorCode myrc = nfc.unlockICODESLIX2(password);
   if (ISO15693_EC_OK == myrc) {
     Serial.println("unlockICODESLIX2 successful");
