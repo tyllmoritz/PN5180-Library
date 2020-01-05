@@ -28,6 +28,7 @@
 #define PN5180_WRITE_REGISTER_OR_MASK   (0x01)
 #define PN5180_WRITE_REGISTER_AND_MASK  (0x02)
 #define PN5180_READ_REGISTER            (0x04)
+#define PN5180_WRITE_EEPROM				(0x06)
 #define PN5180_READ_EEPROM              (0x07)
 #define PN5180_SEND_DATA                (0x09)
 #define PN5180_READ_DATA                (0x0A)
@@ -193,6 +194,20 @@ bool PN5180::readRegister(uint8_t reg, uint32_t *value) {
 }
 
 /*
+ * WRITE_EEPROM - 0x06
+ */
+bool PN5180::writeEEprom(uint8_t addr, uint8_t *buffer, uint8_t len) {
+	uint8_t cmd[len + 2];
+	cmd[0] = PN5180_WRITE_EEPROM;
+	cmd[1] = addr;
+	for (int i = 0; i < len; i++) cmd[2 + i] = buffer[i];
+	SPI.beginTransaction(PN5180_SPI_SETTINGS);
+	transceiveCommand(cmd, len + 2);
+	SPI.endTransaction();
+	return true;
+}
+
+/*
  * READ_EEPROM - 0x07
  * This command is used to read data from EEPROM memory area. The field 'Address'
  * indicates the start address of the read operation. The field Length indicates the number
@@ -232,6 +247,7 @@ bool PN5180::readEEprom(uint8_t addr, uint8_t *buffer, int len) {
 
   return true;
 }
+
 
 /*
  * SEND_DATA - 0x09
@@ -351,14 +367,17 @@ bool PN5180::readData(uint8_t len, uint8_t *buffer) {
  * max. wake-up time is 2960 ms.
  */
 bool PN5180::switchToLPCD(uint16_t wakeupCounterInMs) {
-  uint8_t cmd[4] = { PN5180_SWITCH_MODE, 0x01, (wakeupCounterInMs & 0xFFU), ((wakeupCounterInMs >> 8U) & 0xFFU) };
+  // clear all IRQ flags
+  clearIRQStatus(0xffffffff); 
+  // enable only LPCD and general error IRQ
+  writeRegister(IRQ_ENABLE, LPCD_IRQ_STAT | GENERAL_ERROR_IRQ_STAT);  
+  // switch mode to LPCD 
+  uint8_t cmd[4] = { PN5180_SWITCH_MODE, 0x01, (uint8_t)(wakeupCounterInMs & 0xFF), (uint8_t)((wakeupCounterInMs >> 8U) & 0xFF) };
   SPI.beginTransaction(PN5180_SPI_SETTINGS);
-  bool success = transceiveCommand(cmd, 4);
+  bool success = transceiveCommand(cmd, sizeof(cmd));
   SPI.endTransaction();
-
   return success;
 }
-
 
 /*
  * LOAD_RF_CONFIG - 0x11
@@ -555,7 +574,7 @@ void PN5180::reset() {
 }
 
 /**
- * @name  getInterrrupt
+ * @name  getInterrupt
  * @desc  read interrupt status register and clear interrupt status
  */
 uint32_t PN5180::getIRQStatus() {
