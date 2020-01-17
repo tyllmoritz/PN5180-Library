@@ -53,7 +53,7 @@ uint16_t PN5180ISO14443::rxBytesReceived() {
 }
 /*
 * buffer : must be 10 byte array
-* buffer[0-1] is ATQAa
+* buffer[0-1] is ATQA
 * buffer[2] is sak
 * buffer[3..6] is 4 byte UID
 * buffer[7..9] is remaining 3 bytes of UID for 7 Byte UID tags
@@ -119,6 +119,8 @@ uint8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 	}
 	else {
 		// Take First 3 bytes of UID, Ignore first byte 88(CT)
+		if (cmd[2] != 0x88)
+		  return 0;
 		for (int i = 0; i < 3; i++) buffer[3+i] = cmd[3 + i];
 		// Clear RX CRC
 		if (!writeRegisterWithAndMask(CRC_RX_CONFIG, 0xFFFFFFFE)) 
@@ -136,7 +138,7 @@ uint8_t PN5180ISO14443::activateTypeA(uint8_t *buffer, uint8_t kind) {
 	      return 0;
 		// first 4 bytes belongs to last 4 UID bytes, we keep it.
 		for (int i = 0; i < 4; i++) {
-			buffer[6 + i] = cmd[2+i];
+		  buffer[6 + i] = cmd[2+i];
 		}
 		//Enable RX CRC calculation
 		if (!writeRegisterWithOrMask(CRC_RX_CONFIG, 0x01)) 

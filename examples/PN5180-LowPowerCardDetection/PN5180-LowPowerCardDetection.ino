@@ -1,8 +1,8 @@
-// NAME: PN5180-LowPowerCardDetection.ino
+// NAME: LowPowerCardDetection.ino
 //
 // DESC: Example usage of the PN5180 library for the PN5180-NFC Module
 //       from NXP Semiconductors.
-//		 Uses Low power card detection mode (LPCD)
+//		 This example uses the PN5180 low power card detection mode (LPCD)
 //
 // Copyright (c) 2018 by Andreas Trappmann. All rights reserved.
 // Copyright (c) 2019 by Dirk Carstensen.
@@ -39,40 +39,25 @@
 // SS,10   <-> HV4 - LV4       --> NSS (=Not SS -> active LOW)
 // BUSY,9         <---             BUSY
 // Reset,7 <-> HV2 - LV2       --> RST
-// IRQ,6          <---             IRQ
+// IRQ,6          <---             IRQ 
 //
-// ESP-32    <--> PN5180 pin mapping:
-// 3.3V      <--> 3.3V
-// GND       <--> GND
-// SCLK, 18   --> SCLK
-// MISO, 19  <--  MISO
-// MOSI, 23   --> MOSI
-// SS, 16     --> NSS (=Not SS -> active LOW)
-// BUSY, 5   <--  BUSY
-// Reset, 17  --> RST
+// ESP-32      <--> PN5180 pin mapping:
+// 3.3V        <--> 3.3V
+// 5V          <--> 3.3V
+// GND         <--> GND
+// SCLK, 18     --> SCLK
+// MISO, 19    <--  MISO
+// MOSI, 23     --> MOSI
+// SS, 16       --> NSS (=Not SS -> active LOW)
+// BUSY, 5     <--  BUSY
+// Reset, 17    --> RST
+// GPIO_NUM_34 <--- IRQ
 //
 
-/*
- * Pins on ICODE2 Reader Writer:
- *
- *   ICODE2   |     PN5180
- * pin  label | pin  I/O  name
- * 1    +5V
- * 2    +3,3V
- * 3    RST     10   I    RESET_N (low active)
- * 4    NSS     1    I    SPI NSS
- * 5    MOSI    3    I    SPI MOSI
- * 6    MISO    5    O    SPI MISO
- * 7    SCK     7    I    SPI Clock
- * 8    BUSY    8    O    Busy Signal
- * 9    GND     9  Supply VSS - Ground
- * 10   GPIO    38   O    GPO1 - Control for external DC/DC
- * 11   IRQ     39   O    IRQ
- * 12   AUX     40   O    AUX1 - Analog/Digital test signal
- * 13   REQ     2?  I/O   AUX2 - Analog test bus or download
- *
- */
 
+#if defined(ARDUINO_ARCH_ESP32)
+  #include <WiFi.h>
+#endif
 #include <PN5180.h>
 #include <PN5180ISO14443.h>
 #include <PN5180ISO15693.h>
@@ -89,21 +74,61 @@
 #define PN5180_NSS  16   
 #define PN5180_BUSY 5  
 #define PN5180_RST  17
+#define PN5180_IRQ  GPIO_NUM_15
 
 #else
 #error Please define your pinout here!
 #endif
 
+#if defined(ARDUINO_ARCH_ESP32)
+/*
+ * Method to print the reason by which ESP32 has been awaken from sleep
+ */
+void print_wakeup_reason(){
+  esp_sleep_wakeup_cause_t wakeup_reason;
+
+  wakeup_reason = esp_sleep_get_wakeup_cause();
+
+  switch(wakeup_reason)
+  {
+    case ESP_SLEEP_WAKEUP_EXT0 : Serial.println("Wakeup caused by external signal using RTC_IO"); break;
+    case ESP_SLEEP_WAKEUP_EXT1 : Serial.println("Wakeup caused by external signal using RTC_CNTL"); break;
+    case ESP_SLEEP_WAKEUP_TIMER : Serial.println("Wakeup caused by timer"); break;
+    case ESP_SLEEP_WAKEUP_TOUCHPAD : Serial.println("Wakeup caused by touchpad"); break;
+    case ESP_SLEEP_WAKEUP_ULP : Serial.println("Wakeup caused by ULP program"); break;
+    default : Serial.printf("Wakeup was not caused by deep sleep: %d\n",wakeup_reason); break;
+ }
+}
+#endif
+
+
 PN5180ISO14443 nfc(PN5180_NSS, PN5180_BUSY, PN5180_RST);
+PN5180ISO15693 nfc15693(PN5180_NSS, PN5180_BUSY, PN5180_RST);
+
+uint16_t sleepTimeMS = 0x3FF;
 
 void setup() {
   Serial.begin(115200);
   Serial.println(F("=================================="));
   Serial.println(F("Uploaded: " __DATE__ " " __TIME__));
-  Serial.println(F("PN5180 LPCD Demo Sketch"));
+  #if defined(ARDUINO_ARCH_ESP32)
+    // save power
+    WiFi.mode(WIFI_OFF);
+    btStop();
+    // configure wakeup pin for deep-sleep mode
+    esp_sleep_enable_ext0_wakeup(PN5180_IRQ, 1); //1 = High, 0 = Low
 
+    Serial.println(F("============================================"));
+    Serial.println(F("LPCD detection demo with deep-sleep on ESP32"));
+    print_wakeup_reason();
+    Serial.println(F("============================================"));
+  #else
+    Serial.println(F("PN5180 LPCD Demo Sketch"));
+  #endif
+  Serial.println("");   
   pinMode(PN5180_IRQ, INPUT);
   nfc.begin();
+  nfc15693.begin();
 
   Serial.println(F("----------------------------------"));
   Serial.println(F("PN5180 Hard-Reset..."));
@@ -154,19 +179,11 @@ void setup() {
   Serial.println(irqPin[0]);
 
   Serial.println(F("----------------------------------"));
-  Serial.println(F("start LPCD..."));//  nfc.loadRFConfig(0x00, 0x80);
+  Serial.println(F("start LPCD..."));
 
-  // LPCD threshold
+
   uint8_t data[255];
   uint8_t response[256];
-  uint8_t threshold = 0x04;
-  data[0] = threshold;
-  nfc.writeEEprom(0x37, data, 1);
-  nfc.readEEprom(0x37, response, 1);
-  threshold = response[0];
-  Serial.print("LPCD-threshold: ");
-  Serial.println(threshold, HEX);
-  
   // LPCD_FIELD_ON_TIME (0x36)
   uint8_t fieldOn = 0xF0;
   data[0] = fieldOn;
@@ -176,7 +193,16 @@ void setup() {
   Serial.print("LPCD-fieldOn time: ");
   Serial.println(fieldOn, HEX);
 
-  // LPCD_REFVAL_GPO_CONTROL
+  // LPCD_THRESHOLD (0x37)
+  uint8_t threshold = 0x04;
+  data[0] = threshold;
+  nfc.writeEEprom(0x37, data, 1);
+  nfc.readEEprom(0x37, response, 1);
+  threshold = response[0];
+  Serial.print("LPCD-threshold: ");
+  Serial.println(threshold, HEX);
+
+  // LPCD_REFVAL_GPO_CONTROL (0x38)
   uint8_t lpcdMode = 0x01; // 1 = LPCD SELF CALIBRATION
   data[0] = lpcdMode;
   nfc.writeEEprom(0x38, data, 1);
@@ -184,16 +210,33 @@ void setup() {
   lpcdMode = response[0];
   Serial.print("lpcdMode: ");
   Serial.println(lpcdMode, HEX);
+  
+  // LPCD_GPO_TOGGLE_BEFORE_FIELD_ON (0x39)
+  uint8_t beforeFieldOn = 0xF0; 
+  data[0] = beforeFieldOn;
+  nfc.writeEEprom(0x39, data, 1);
+  nfc.readEEprom(0x39, response, 1);
+  beforeFieldOn = response[0];
+  Serial.print("beforeFieldOn: ");
+  Serial.println(beforeFieldOn, HEX);
+  
+  // LPCD_GPO_TOGGLE_AFTER_FIELD_ON (0x3A)
+  uint8_t afterFieldOn = 0xF0; 
+  data[0] = afterFieldOn;
+  nfc.writeEEprom(0x3A, data, 1);
+  nfc.readEEprom(0x3A, response, 1);
+  afterFieldOn = response[0];
+  Serial.print("afterFieldOn: ");
+  Serial.println(afterFieldOn, HEX);
   delay(100);
-
-
-  // turn on LPCD
-  uint16_t sleepTimeMS = 2500;
+      
+  // turn on LPCD in self calibration mode
   if (nfc.switchToLPCD(sleepTimeMS)) {
     Serial.println("switchToLPCD success");
   } else {
     Serial.println("switchToLPCD failed");
   }
+  // ++ go to sleep ++
 }
 
 uint32_t loopCnt = 0;
@@ -210,9 +253,53 @@ void loop() {
     Serial.println(u, HEX);
     nfc.clearIRQStatus(0xffffffff);
     nfc.reset(); 
-    delay(1000);
+    // try to read the UID for an ISO-14443 card
+    uint8_t uid[10];
+    nfc.setupRF();
+    if (nfc.isCardPresent()) {
+      uint8_t uidLength = nfc.readCardSerial(uid);
+      if (uidLength > 0) {
+        Serial.print(F("ISO14443 card found, UID="));
+        for (int i=0; i<uidLength; i++) {
+          Serial.print(uid[i] < 0x10 ? " 0" : " ");
+          Serial.print(uid[i], HEX);
+        }
+        Serial.println();
+        Serial.println(F("----------------------------------"));
+        delay(1000); 
+        return;
+      }
+    } 
+    // check for ISO-15693 card
+    nfc15693.reset();
+    nfc15693.setupRF();
+    // check for ICODE-SLIX2 password protected tag
+    uint8_t password[] = {0x5B, 0x6E, 0xFD, 0x7F};
+    ISO15693ErrorCode myrc = nfc15693.disablePrivacyMode(password);
+    if (ISO15693_EC_OK == myrc) {
+      Serial.println("disablePrivacyMode successful");
+    }
+    // try to read ISO15693 inventory
+    ISO15693ErrorCode rc = nfc15693.getInventory(uid);
+    if (rc == ISO15693_EC_OK) {
+      Serial.print(F("ISO15693 card found, UID="));
+      for (int i=0; i<8; i++) {
+        Serial.print(uid[7-i] < 0x10 ? " 0" : " ");
+        Serial.print(uid[7-i], HEX); // LSB is first
+      }
+      Serial.println();
+      // lock password  
+      ISO15693ErrorCode myrc = nfc15693.enablePrivacyMode(password);
+      if (ISO15693_EC_OK == myrc) {
+        Serial.println("enablePrivacyMode successful");
+      }
+      Serial.println();
+      Serial.println(F("----------------------------------"));
+      delay(1000); 
+      return;
+    }
+	
     // turn on LPCD
-    uint16_t sleepTimeMS = 2500;
     if (nfc.switchToLPCD(sleepTimeMS)) {
       Serial.println("switchToLPCD success");
     } else {
