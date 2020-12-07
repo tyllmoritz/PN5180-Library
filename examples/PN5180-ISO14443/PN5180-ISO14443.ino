@@ -1,14 +1,15 @@
-// NAME: PN5180-Library.ino
+// NAME: PN5180-ISO14443.ino
 //
 // DESC: Example usage of the PN5180 library for the PN5180-NFC Module
 //       from NXP Semiconductors.
 //
 // Copyright (c) 2018 by Andreas Trappmann. All rights reserved.
+// Copyright (c) 2019 by Dirk Carstensen.
 //
 // This file is part of the PN5180 library for the Arduino environment.
 //
 // This library is free software; you can redistribute it and/or
-// modify it under the terms of the GNU Lesser General Public
+// modify it under the terms of the GNU Lesser General Public 
 // License as published by the Free Software Foundation; either
 // version 2.1 of the License, or (at your option) any later version.
 //
@@ -18,7 +19,7 @@
 // Lesser General Public License for more details.
 //
 // BEWARE: SPI with an Arduino to a PN5180 module has to be at a level of 3.3V
-// use of logic-level converters from 5V->3.3V is absolutely necessary
+// use of logic-level converters from 5V->3.3V is absolutly neccessary
 // on most Arduinos for all input pins of PN5180!
 // If used with an ESP-32, there is no need for a logic-level converter, since
 // it operates on 3.3V already.
@@ -73,7 +74,7 @@
 //#define WRITE_ENABLED 1
 
 #include <PN5180.h>
-#include <PN5180ISO15693.h>
+#include <PN5180ISO14443.h>
 
 #if defined(ARDUINO_AVR_UNO) || defined(ARDUINO_AVR_MEGA2560) || defined(ARDUINO_AVR_NANO)
 
@@ -83,21 +84,21 @@
 
 #elif defined(ARDUINO_ARCH_ESP32)
 
-#define PN5180_NSS  16
-#define PN5180_BUSY 5
+#define PN5180_NSS  16   // swapped with BUSY
+#define PN5180_BUSY 5  // swapped with NSS
 #define PN5180_RST  17
 
 #else
 #error Please define your pinout here!
 #endif
 
-PN5180ISO15693 nfc(PN5180_NSS, PN5180_BUSY, PN5180_RST);
+PN5180ISO14443 nfc(PN5180_NSS, PN5180_BUSY, PN5180_RST);
 
 void setup() {
   Serial.begin(115200);
   Serial.println(F("=================================="));
   Serial.println(F("Uploaded: " __DATE__ " " __TIME__));
-  Serial.println(F("PN5180 ISO15693 Demo Sketch"));
+  Serial.println(F("PN5180 ISO14443 Demo Sketch"));
 
   nfc.begin();
 
@@ -139,22 +140,6 @@ void setup() {
   Serial.print(".");
   Serial.println(eepromVersion[0]);
 
-  /*
-  Serial.println(F("----------------------------------"));
-  Serial.println(F("Reading IRQ pin config..."));
-  uint8_t irqConfig;
-  nfc.readEEprom(IRQ_PIN_CONFIG, &irqConfig, 1));
-  Serial.print(F("IRQ_PIN_CONFIG=0x"));
-  Serial.println(irqConfig, HEX);
-
-  Serial.println(F("----------------------------------"));
-  Serial.println(F("Reading IRQ_ENABLE register..."));
-  uint32_t irqEnable;
-  nfc.readRegister(IRQ_ENABLE, &irqEnable));
-  Serial.print(F("IRQ_ENABLE=0x"));
-  Serial.println(irqConfig, HEX);
-  */
-
   Serial.println(F("----------------------------------"));
   Serial.println(F("Enable RF field..."));
   nfc.setupRF();
@@ -163,6 +148,8 @@ void setup() {
 uint32_t loopCnt = 0;
 bool errorFlag = false;
 
+
+// ISO 14443 loop
 void loop() {
   if (errorFlag) {
     uint32_t irqStatus = nfc.getIRQStatus();
@@ -176,112 +163,34 @@ void loop() {
     nfc.setupRF();
 
     errorFlag = false;
+    delay(10);
   }
-
   Serial.println(F("----------------------------------"));
   Serial.print(F("Loop #"));
   Serial.println(loopCnt++);
-
-/*
-  // code for unlocking an ICODE SLIX2 protected tag   
-  uint8_t password[] = {0x01, 0x02, 0x03, 0x04}; // put your privacy password here
-  ISO15693ErrorCode myrc = nfc.unlockICODESLIX2(password);
-  if (ISO15693_EC_OK == myrc) {
-    Serial.println("unlockICODESLIX2 successful");
+  if (!nfc.isCardPresent()) {
+    Serial.print(F("no card found"));
+    return;
   }
-*/
-  
   uint8_t uid[8];
-  ISO15693ErrorCode rc = nfc.getInventory(uid);
-  if (ISO15693_EC_OK != rc) {
-    Serial.print(F("Error in getInventory: "));
-    Serial.println(nfc.strerror(rc));
+  if (!nfc.readCardSerial(uid)) {
+    Serial.print(F("Error in readCardSerial: "));
     errorFlag = true;
     return;
   }
-  Serial.print(F("Inventory successful, UID="));
+  Serial.print(F("card serial successful, UID="));
   for (int i=0; i<8; i++) {
-    Serial.print(uid[7-i], HEX); // LSB is first
+    Serial.print(uid[i], HEX); 
     if (i < 2) Serial.print(":");
   }
   Serial.println();
 
   Serial.println(F("----------------------------------"));
-  uint8_t blockSize, numBlocks;
-  rc = nfc.getSystemInfo(uid, &blockSize, &numBlocks);
-  if (ISO15693_EC_OK != rc) {
-    Serial.print(F("Error in getSystemInfo: "));
-    Serial.println(nfc.strerror(rc));
-    errorFlag = true;
-    return;
-  }
-  Serial.print(F("System Info retrieved: blockSize="));
-  Serial.print(blockSize);
-  Serial.print(F(", numBlocks="));
-  Serial.println(numBlocks);
 
-  Serial.println(F("----------------------------------"));
-  uint8_t readBuffer[blockSize];
-  for (int no=0; no<numBlocks; no++) {
-    rc = nfc.readSingleBlock(uid, no, readBuffer, blockSize);
-    if (ISO15693_EC_OK != rc) {
-      Serial.print(F("Error in readSingleBlock #"));
-      Serial.print(no);
-      Serial.print(": ");
-      Serial.println(nfc.strerror(rc));
-      errorFlag = true;
-      return;
-    }
-    Serial.print(F("Read block #"));
-    Serial.print(no);
-    Serial.print(": ");
-    for (int i=0; i<blockSize; i++) {
-      if (readBuffer[i] < 16) Serial.print("0");
-      Serial.print(readBuffer[i], HEX);
-      Serial.print(" ");
-    }
-    Serial.print(" ");
-    for (int i=0; i<blockSize; i++) {
-      if (isprint(readBuffer[i])) {
-        Serial.print((char)readBuffer[i]);
-      }
-      else Serial.print(".");
-    }
-    Serial.println();
-  }
-
-#ifdef WRITE_ENABLED
-  Serial.println(F("----------------------------------"));
-  uint8_t *writeBuffer = malloc(blockSize);
-  for (int i=0; i<blockSize; i++) {
-    writeBuffer[i] = 0x80 + i;
-  }
-  for (int no=0; no<numBlocks; no++) {
-    rc = nfc.writeSingleBlock(uid, no, writeBuffer, blockSize);
-    if (ISO15693_EC_OK == rc) {
-      Serial.print(F("Wrote block #"));
-      Serial.println(no);
-    }
-    else {
-      Serial.print(F("Error in writeSingleBlock #"));
-      Serial.print(no);
-      Serial.print(": ");
-      Serial.println(nfc.strerror(rc));
-      errorFlag = true;
-      return;
-    }
-  }
-#endif /* WRITE_ENABLED */
-
-/*
-  // code for locking an ICODE SLIX2 protected tag   
-  ISO15693ErrorCode myrc = nfc.lockICODESLIX2(password);
-  if (ISO15693_EC_OK == myrc) {
-    Serial.println("lockICODESLIX2 successful");
-    delay(5000);
-*/
-  delay(1000);
+  delay(1000);  
 }
+
+
 
 void showIRQStatus(uint32_t irqStatus) {
   Serial.print(F("IRQ-Status 0x"));

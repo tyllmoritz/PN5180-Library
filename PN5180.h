@@ -32,9 +32,14 @@
 #define RX_WAIT_CONFIG      (0x11)
 #define CRC_RX_CONFIG       (0x12)
 #define RX_STATUS           (0x13)
+#define TX_WAIT_CONFIG	    (0x17)
+#define TX_CONFIG			(0x18)
+#define CRC_TX_CONFIG       (0x19)
 #define RF_STATUS           (0x1d)
 #define SYSTEM_STATUS       (0x24)
 #define TEMP_CONTROL        (0x25)
+#define AGC_REF_CONFIG		(0x26)
+
 
 // PN5180 EEPROM Addresses
 #define DIE_IDENTIFIER      (0x00)
@@ -55,14 +60,16 @@ enum PN5180TransceiveStat {
 };
 
 // PN5180 IRQ_STATUS
-#define RX_IRQ_STAT         (1<<0)  // End of RF rececption IRQ
-#define TX_IRQ_STAT         (1<<1)  // End of RF transmission IRQ
-#define IDLE_IRQ_STAT       (1<<2)  // IDLE IRQ
-#define RFOFF_DET_IRQ_STAT  (1<<6)  // RF Field OFF detection IRQ
-#define RFON_DET_IRQ_STAT   (1<<7)  // RF Field ON detection IRQ
-#define TX_RFOFF_IRQ_STAT   (1<<8)  // RF Field OFF in PCD IRQ
-#define TX_RFON_IRQ_STAT    (1<<9)  // RF Field ON in PCD IRQ
-#define RX_SOF_DET_IRQ_STAT (1<<14) // RF SOF Detection IRQ
+#define RX_IRQ_STAT         	(1<<0)  // End of RF rececption IRQ
+#define TX_IRQ_STAT         	(1<<1)  // End of RF transmission IRQ
+#define IDLE_IRQ_STAT       	(1<<2)  // IDLE IRQ
+#define RFOFF_DET_IRQ_STAT  	(1<<6)  // RF Field OFF detection IRQ
+#define RFON_DET_IRQ_STAT   	(1<<7)  // RF Field ON detection IRQ
+#define TX_RFOFF_IRQ_STAT   	(1<<8)  // RF Field OFF in PCD IRQ
+#define TX_RFON_IRQ_STAT    	(1<<9)  // RF Field ON in PCD IRQ
+#define RX_SOF_DET_IRQ_STAT 	(1<<14) // RF SOF Detection IRQ
+#define GENERAL_ERROR_IRQ_STAT 	(1<<17) // General error IRQ
+#define LPCD_IRQ_STAT 			(1<<19) // LPCD Detection IRQ
 
 class PN5180 {
 private:
@@ -93,6 +100,8 @@ public:
   /* cmd 0x04 */
   bool readRegister(uint8_t reg, uint32_t *value);
 
+  /* cmd 0x06 */
+  bool writeEEprom(uint8_t addr, uint8_t *buffer, uint8_t len);
   /* cmd 0x07 */
   bool readEEprom(uint8_t addr, uint8_t *buffer, int len);
 
@@ -100,7 +109,9 @@ public:
   bool sendData(uint8_t *data, int len, uint8_t validBits = 0);
   /* cmd 0x0a */
   uint8_t * readData(int len);
-
+  bool readData(uint8_t len, uint8_t *buffer);
+  /* cmd 0x0B */
+  bool switchToLPCD(uint16_t wakeupCounterInMs);
   /* cmd 0x11 */
   bool loadRFConfig(uint8_t txConf, uint8_t rxConf);
 
@@ -115,6 +126,7 @@ public:
 public:
   void reset();
 
+  uint8_t commandTimeout = 50;
   uint32_t getIRQStatus();
   bool clearIRQStatus(uint32_t irqMask);
 

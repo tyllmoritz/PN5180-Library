@@ -28,6 +28,7 @@
 #define PN5180_WRITE_REGISTER_OR_MASK   (0x01)
 #define PN5180_WRITE_REGISTER_AND_MASK  (0x02)
 #define PN5180_READ_REGISTER            (0x04)
+#define PN5180_WRITE_EEPROM				(0x06)
 #define PN5180_READ_EEPROM              (0x07)
 #define PN5180_SEND_DATA                (0x09)
 #define PN5180_READ_DATA                (0x0A)
@@ -193,6 +194,20 @@ bool PN5180::readRegister(uint8_t reg, uint32_t *value) {
 }
 
 /*
+ * WRITE_EEPROM - 0x06
+ */
+bool PN5180::writeEEprom(uint8_t addr, uint8_t *buffer, uint8_t len) {
+	uint8_t cmd[len + 2];
+	cmd[0] = PN5180_WRITE_EEPROM;
+	cmd[1] = addr;
+	for (int i = 0; i < len; i++) cmd[2 + i] = buffer[i];
+	SPI.beginTransaction(PN5180_SPI_SETTINGS);
+	transceiveCommand(cmd, len + 2);
+	SPI.endTransaction();
+	return true;
+}
+
+/*
  * READ_EEPROM - 0x07
  * This command is used to read data from EEPROM memory area. The field 'Address'
  * indicates the start address of the read operation. The field Length indicates the number
@@ -232,6 +247,7 @@ bool PN5180::readEEprom(uint8_t addr, uint8_t *buffer, int len) {
 
   return true;
 }
+
 
 /*
  * SEND_DATA - 0x09
@@ -290,10 +306,10 @@ bool PN5180::sendData(uint8_t *data, int len, uint8_t validBits) {
   }
 
   SPI.beginTransaction(PN5180_SPI_SETTINGS);
-  transceiveCommand(buffer, len+2);
+  bool success = transceiveCommand(buffer, len+2);
   SPI.endTransaction();
 
-  return true;
+  return success;
 }
 
 /*
@@ -332,6 +348,35 @@ uint8_t * PN5180::readData(int len) {
 #endif
 
   return readBuffer;
+}
+
+bool PN5180::readData(uint8_t len, uint8_t *buffer) {
+	if (len > 508) {
+		return false;
+	}
+	uint8_t cmd[2] = { PN5180_READ_DATA, 0x00 };
+	SPI.beginTransaction(PN5180_SPI_SETTINGS);
+	bool success = transceiveCommand(cmd, 2, buffer, len);
+	SPI.endTransaction();
+	return success;
+}
+
+
+/* switch the mode to LPCD (low power card detection)
+ * Parameter 'wakeupCounterInMs' must be in the range from 0x0 - 0xA82
+ * max. wake-up time is 2960 ms.
+ */
+bool PN5180::switchToLPCD(uint16_t wakeupCounterInMs) {
+  // clear all IRQ flags
+  clearIRQStatus(0xffffffff); 
+  // enable only LPCD and general error IRQ
+  writeRegister(IRQ_ENABLE, LPCD_IRQ_STAT | GENERAL_ERROR_IRQ_STAT);  
+  // switch mode to LPCD 
+  uint8_t cmd[4] = { PN5180_SWITCH_MODE, 0x01, (uint8_t)(wakeupCounterInMs & 0xFF), (uint8_t)((wakeupCounterInMs >> 8U) & 0xFF) };
+  SPI.beginTransaction(PN5180_SPI_SETTINGS);
+  bool success = transceiveCommand(cmd, sizeof(cmd));
+  SPI.endTransaction();
+  return success;
 }
 
 /*
@@ -455,7 +500,10 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
 #endif
 
   // 0.
-  while (LOW != digitalRead(PN5180_BUSY)); // wait until busy is low
+  unsigned long startedWaiting = millis();
+  while (LOW != digitalRead(PN5180_BUSY)) {
+    if (millis() - startedWaiting > commandTimeout) return false;
+  }; // wait until busy is low
   // 1.
   digitalWrite(PN5180_NSS, LOW); delay(2);
   // 2.
@@ -463,11 +511,17 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
     SPI.transfer(sendBuffer[i]);
   }
   // 3.
-  while(HIGH != digitalRead(PN5180_BUSY));  // wait until BUSY is high
+  startedWaiting = millis();
+  while (HIGH != digitalRead(PN5180_BUSY)) {
+    if (millis() - startedWaiting > commandTimeout) return false;
+  }; // wait until busy is high
   // 4.
   digitalWrite(PN5180_NSS, HIGH); delay(1);
   // 5.
-  while (LOW != digitalRead(PN5180_BUSY)); // wait unitl BUSY is low
+  startedWaiting = millis();
+  while (LOW != digitalRead(PN5180_BUSY)) {
+    if (millis() - startedWaiting > commandTimeout) return false;
+  }; // wait until busy is low
 
   // check, if write-only
   //
@@ -481,11 +535,17 @@ bool PN5180::transceiveCommand(uint8_t *sendBuffer, size_t sendBufferLen, uint8_
     recvBuffer[i] = SPI.transfer(0xff);
   }
   // 3.
-  while(HIGH != digitalRead(PN5180_BUSY));  // wait until BUSY is high
+  startedWaiting = millis();
+  while (HIGH != digitalRead(PN5180_BUSY)) {
+    if (millis() - startedWaiting > commandTimeout) return false;
+  }; // wait until busy is high
   // 4.
   digitalWrite(PN5180_NSS, HIGH); delay(1);
   // 5.
-  while(LOW != digitalRead(PN5180_BUSY));  // wait until BUSY is low
+  startedWaiting = millis();
+  while (LOW != digitalRead(PN5180_BUSY)) {
+    if (millis() - startedWaiting > commandTimeout) return false;
+  }; // wait until busy is low
 
 #ifdef DEBUG
   PN5180DEBUG(F("Received: "));
@@ -514,7 +574,7 @@ void PN5180::reset() {
 }
 
 /**
- * @name  getInterrrupt
+ * @name  getInterrupt
  * @desc  read interrupt status register and clear interrupt status
  */
 uint32_t PN5180::getIRQStatus() {

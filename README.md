@@ -7,6 +7,12 @@ Arduino Uno / Arduino ESP-32 library for PN5180-NFC Module from NXP Semiconducto
 
 Release Notes:
 
+Version 1.5 - xx.xx.2019
+
+	* ISO-14443 protocol, basic support for Mifaire cards
+	* Low power card detection
+	* handle transceiveCommand timeout
+
 Version 1.4 - 13.11.2019
 
 	* ICODE SLIX2 specific commands, see https://www.nxp.com/docs/en/data-sheet/SL2S2602.pdf
