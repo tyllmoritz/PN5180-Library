@@ -361,6 +361,62 @@ bool PN5180::readData(uint8_t len, uint8_t *buffer) {
 	return success;
 }
 
+/* prepare LPCD registers */
+bool PN5180::prepareLPCD() {
+  //=======================================LPCD CONFIG================================================================================
+  PN5180DEBUG(F("----------------------------------"));
+  PN5180DEBUG(F("prepare LPCD..."));
+
+  uint8_t data[255];
+  uint8_t response[256];
+    //1. Set Fieldon time                                           LPCD_FIELD_ON_TIME (0x36)
+  uint8_t fieldOn = 0xF0;//0x## -> ##(base 10) x 8μs + 62 μs
+  data[0] = fieldOn;
+  writeEEprom(0x36, data, 1);
+  readEEprom(0x36, response, 1);
+  fieldOn = response[0];
+  PN5180DEBUG("LPCD-fieldOn time: ");
+  PN5180DEBUG(formatHex(fieldOn));
+
+    //2. Set threshold level                                         AGC_LPCD_THRESHOLD @ EEPROM 0x37
+  uint8_t threshold = 0x03;
+  data[0] = threshold;
+  writeEEprom(0x37, data, 1);
+  readEEprom(0x37, response, 1);
+  threshold = response[0];
+  PN5180DEBUG("LPCD-threshold: ");
+  PN5180DEBUG(formatHex(threshold));
+
+  //3. Select LPCD mode                                               LPCD_REFVAL_GPO_CONTROL (0x38)
+  uint8_t lpcdMode = 0x01; // 1 = LPCD SELF CALIBRATION 
+                           // 0 = LPCD AUTO CALIBRATION (this mode does not work, should look more into it, no reason why it shouldn't work)
+  data[0] = lpcdMode;
+  writeEEprom(0x38, data, 1);
+  readEEprom(0x38, response, 1);
+  lpcdMode = response[0];
+  PN5180DEBUG("lpcdMode: ");
+  PN5180DEBUG(formatHex(lpcdMode));
+  
+  // LPCD_GPO_TOGGLE_BEFORE_FIELD_ON (0x39)
+  uint8_t beforeFieldOn = 0xF0; 
+  data[0] = beforeFieldOn;
+  writeEEprom(0x39, data, 1);
+  readEEprom(0x39, response, 1);
+  beforeFieldOn = response[0];
+  PN5180DEBUG("beforeFieldOn: ");
+  PN5180DEBUG(formatHex(beforeFieldOn));
+  
+  // LPCD_GPO_TOGGLE_AFTER_FIELD_ON (0x3A)
+  uint8_t afterFieldOn = 0xF0; 
+  data[0] = afterFieldOn;
+  writeEEprom(0x3A, data, 1);
+  readEEprom(0x3A, response, 1);
+  afterFieldOn = response[0];
+  PN5180DEBUG("afterFieldOn: ");
+  PN5180DEBUG(formatHex(afterFieldOn));
+  delay(100);
+  return true;
+}
 
 /* switch the mode to LPCD (low power card detection)
  * Parameter 'wakeupCounterInMs' must be in the range from 0x0 - 0xA82

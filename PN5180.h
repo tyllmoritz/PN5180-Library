@@ -110,6 +110,8 @@ public:
   /* cmd 0x0a */
   uint8_t * readData(int len);
   bool readData(uint8_t len, uint8_t *buffer);
+  /* prepare LPCD registers */
+  bool prepareLPCD();
   /* cmd 0x0B */
   bool switchToLPCD(uint16_t wakeupCounterInMs);
   /* cmd 0x11 */
