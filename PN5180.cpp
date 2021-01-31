@@ -230,7 +230,7 @@ bool PN5180::readEEprom(uint8_t addr, uint8_t *buffer, int len) {
   PN5180DEBUG(len);
   PN5180DEBUG(F("...\n"));
 
-  uint8_t cmd[3] = { PN5180_READ_EEPROM, addr, len };
+  uint8_t cmd[3] = { PN5180_READ_EEPROM, addr, uint8_t(len) };
 
   SPI.beginTransaction(PN5180_SPI_SETTINGS);
   transceiveCommand(cmd, 3, buffer, len);

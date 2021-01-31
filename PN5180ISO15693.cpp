@@ -305,9 +305,8 @@ ISO15693ErrorCode PN5180ISO15693::getSystemInfo(uint8_t *uid, uint8_t *blockSize
 
   uint8_t infoFlags = readBuffer[1];
   if (infoFlags & 0x01) { // DSFID flag
-    uint8_t dsfid = *p++;
     PN5180DEBUG("DSFID=");  // Data storage format identifier
-    PN5180DEBUG(formatHex(dsfid));
+    PN5180DEBUG(formatHex(uint8_t(*p++)));
     PN5180DEBUG("\n");
   }
 #ifdef DEBUG
@@ -348,10 +347,9 @@ ISO15693ErrorCode PN5180ISO15693::getSystemInfo(uint8_t *uid, uint8_t *blockSize
 
     *blockSize = *blockSize + 1; // range: 1-32
     *numBlocks = *numBlocks + 1; // range: 1-256
-    uint16_t viccMemSize = (*blockSize) * (*numBlocks);
 
     PN5180DEBUG("VICC MemSize=");
-    PN5180DEBUG(viccMemSize);
+    PN5180DEBUG(uint16_t(*blockSize) * (*numBlocks));
     PN5180DEBUG(" BlockSize=");
     PN5180DEBUG(*blockSize);
     PN5180DEBUG(" NumBlocks=");
@@ -363,9 +361,8 @@ ISO15693ErrorCode PN5180ISO15693::getSystemInfo(uint8_t *uid, uint8_t *blockSize
 #endif
    
   if (infoFlags & 0x08) { // IC reference
-    uint8_t icRef = *p++;
     PN5180DEBUG("IC Ref=");
-    PN5180DEBUG(formatHex(icRef));
+    PN5180DEBUG(formatHex(uint8_t(*p++)));
     PN5180DEBUG("\n");
   }
 #ifdef DEBUG
