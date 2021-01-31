@@ -7,7 +7,12 @@ Arduino Uno / Arduino ESP-32 library for PN5180-NFC Module from NXP Semiconducto
 
 Release Notes:
 
-Version 1.5 - xx.xx.2019
+Version 1.6 - 31.01.2021
+
+	* fix compiler warnings for platform.io
+	* add LPCD (low power card detection) example for ESP-32 (with deep sleep tp save battery power)
+
+	Version 1.5 - 07.12.2020
 
 	* ISO-14443 protocol, basic support for Mifaire cards
 	* Low power card detection
