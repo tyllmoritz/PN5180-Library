@@ -513,8 +513,14 @@ ISO15693ErrorCode PN5180ISO15693::issueISO15693Command(uint8_t *cmd, uint8_t cmd
   sendData(cmd, cmdLen);
   delay(10);
 
-  if (0 == (getIRQStatus() & RX_SOF_DET_IRQ_STAT)) {
-    return EC_NO_CARD;
+  uint32_t irqR = getIRQStatus();
+  if (0 == (irqR & RX_SOF_DET_IRQ_STAT)) {
+	return EC_NO_CARD;
+  }
+  
+  while(!(irqR & RX_IRQ_STAT)) {
+	delay(1);
+	irqR = getIRQStatus();
   }
   
   uint32_t rxStatus;
